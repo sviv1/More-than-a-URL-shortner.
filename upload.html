@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+</head>
+<body>
+    <h1>Upload Files</h1>
+
+    {% if warning == 1 %}
+        <p style="color:red;">No file selected!</p>
+    {% elif warning == 2 %}
+        <p style="color:red;">Invalid file type!</p>
+    {% elif warning == -1 %}
+        <p style="color:green;">File uploaded successfully! <a href="{{ link }}">Click here to view</a></p>
+    {% endif %}
+
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+        <label>Enter Admin Key:</label>
+        <input type="password" name="key" required>
+        <input type="file" name="file" required>
+        <button type="submit">Upload File</button>
+    </form>
+
+    <h2>Other Options</h2>
+    <ul>
+        <li><a href="{{ url_for('forms') }}">Shorten URL</a></li>
+        <li><a href="{{ url_for('get_count') }}">View Stats</a></li>
+        <li><a href="{{ url_for('about') }}">About</a></li>
+    </ul>
+</body>
+</html>

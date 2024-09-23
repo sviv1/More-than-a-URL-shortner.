@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About</title>
+</head>
+<body>
+    <h1>About This Project</h1>
+    <p>This URL shortener allows users to create shortened URLs and track statistics, including click counts and visitor information.</p>
+
+    <h2>Other Options</h2>
+    <ul>
+        <li><a href="{{ url_for('forms') }}">Shorten URL</a></li>
+        <li><a href="{{ url_for('upload') }}">Upload File</a></li>
+        <li><a href="{{ url_for('get_count') }}">View Statistics</a></li>
+    </ul>
+</body>
+</html>
