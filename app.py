@@ -4,7 +4,7 @@ import random
 import string
 from flask import Flask, flash, redirect, render_template, request, send_from_directory, url_for
 from werkzeug.utils import secure_filename
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy # type: ignore
 from pytz import timezone
 from datetime import datetime
 import config
