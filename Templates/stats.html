@@ -3,40 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Statistics</title>
+    <title>URL Stats</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
-<body>
+<body class="bg-dark text-light">
+
+<div class="container mt-5">
     <h1>URL Statistics</h1>
 
-    {% if warning %}
-        <p style="color:red;">Invalid URL!</p>
+    {% if basic %}
+    <div class="alert alert-info mt-3">
+        Please enter a valid URL to get the statistics.
+    </div>
     {% endif %}
 
-    <form action="/stat" method="POST">
-        <input type="text" name="URL" placeholder="Enter Original URL" required>
-        <button type="submit">Get Statistics</button>
+    {% if warning %}
+    <div class="alert alert-danger mt-3">
+        No statistics found for the entered URL.
+    </div>
+    {% endif %}
+
+    {% if stats %}
+    <div class="mt-3">
+        <h2>Statistics for URL:</h2>
+        <p><strong>Original URL:</strong> {{ stats.original_url }}</p>
+        <p><strong>Short URL:</strong> <a href="/q={{ stats.short_url }}" class="text-info" target="_blank">{{ stats.short_url }}</a></p>
+        <p><strong>Total Visits:</strong> {{ stats.total_visits }}</p>
+
+        <h3>Visit Details:</h3>
+        <table class="table table-dark table-striped">
+            <thead>
+                <tr>
+                    <th>S. No.</th>
+                    <th>IP Address</th>
+                    <th>Visit Count</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for visit in stats.visit_records %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ visit.ip_address }}</td>
+                    <td>{{ visit.count }}</td>
+                    <td>{{ visit.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <hr class="my-4">
+    <h3>Get URL Stats</h3>
+    <form action="{{ url_for('get_count') }}" method="POST">
+        <div class="form-group">
+            <label for="URL">Enter Original URL:</label>
+            <input type="text" class="form-control bg-secondary text-light" id="URL" name="URL" placeholder="Enter Original URL" required>
+        </div>
+        <button type="submit" class="btn btn-outline-light">Get Stats</button>
     </form>
 
-    {% if not basic %}
-        <h2>Statistics for {{ url }}</h2>
-        {% if url in data %}
-            <p>Total Clicks: {{ data[url]['count'] }}</p>
-            <p>Visitors:</p>
-            <ul>
-                {% for ip, count in data[url]['vis'].items() %}
-                    <li>{{ ip }}: {{ count }} clicks</li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p style="color:red;">No statistics found for this URL.</p>
-        {% endif %}
-    {% endif %}
+          <!-- Hard Reset Button (Admin Only) -->
+    <hr>
+    <div class="container">
+        <h1>Database Reset</h1>
+    
+        <!-- Display flash messages here -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="alert-container">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} mt-3">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+    
+        <form action="{{ url_for('hard_reset') }}" method="POST">
+            <div class="form-group">
+                <label for="key">Enter Admin Key to Reset Database:</label>
+                <input type="password" class="form-control bg-secondary" id="key" name="key" placeholder="Enter Admin Key" required>
+            </div>
+            <button type="submit" class="btn btn-outline-danger ">Hard Reset Database</button>
+        </form>
+      
+    </div>
+    
+    <hr>
 
-    <h2>Other Options</h2>
-    <ul>
-        <li><a href="{{ url_for('forms') }}">Shorten URL</a></li>
-        <li><a href="{{ url_for('upload') }}">Upload File</a></li>
-        <li><a href="{{ url_for('about') }}">About</a></li>
-    </ul>
+
+</div>
+
+<!-- Bootstrap JS and dependencies -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>

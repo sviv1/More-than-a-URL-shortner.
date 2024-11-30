@@ -4,41 +4,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URL Shortener</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-    <h1>URL Shortener</h1>
+<body class="bg-dark text-white">
 
-    {% if warning %}
-        <p style="color:red;">
-            {% if warning == 1 %}
-                Both fields are required!
-            {% elif warning == 2 %}
-                Short URL already exists!
-            {% elif warning == 3 %}
-                Invalid URL format!
-            {% elif warning == 4 %}
-                Short URL must be alphanumeric!
-            {% elif warning == 5 %}
-                Short URL not found!
-            {% endif %}
-        </p>
-    {% endif %}
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">URL Shortener</a>
+        </div>
+    </nav>
 
-    <form action="/main" method="POST">
-        <label>Enter original URL:</label>
-        <input type="text" name="original_url" required>
-        <button type="submit">Shorten URL</button>
-    </form>
+    <!-- Main Content -->
+    <div class="container my-5">
+        <!-- Heading -->
+        <h1 class="text-center display-4 fw-bold mb-4">Shorten Your URL</h1>
 
-    {% if saved %}
-        <p>Your shortened URL: <a href="{{ a }}">{{ a }}</a></p>
-    {% endif %}
+        <!-- Warning message -->
+        {% if warning %}
+            <div class="alert alert-danger" role="alert">
+                {% if warning == 1 %}
+                    Both fields are required!
+                {% elif warning == 2 %}
+                    Short URL already exists!
+                {% elif warning == 3 %}
+                    Invalid URL format!
+                {% elif warning == 4 %}
+                    Short URL must be alphanumeric!
+                {% elif warning == 5 %}
+                    Short URL not found!
+                {% endif %}
+            </div>
+        {% endif %}
 
-    <h2>Other Options</h2>
-    <ul>
-        <li><a href="{{ url_for('upload') }}">Upload File</a></li>
-        <li><a href="{{ url_for('get_count') }}">View Stats</a></li>
-        <li><a href="{{ url_for('about') }}">About</a></li>
-    </ul>
+        <!-- URL Shortening Form -->
+        <form action="/main" method="POST" class="mb-4">
+            <div class="mb-3">
+                <label for="original_url" class="form-label">Enter original URL:</label>
+                <input type="text" name="original_url" id="original_url" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-outline-light btn-lg w-100">Shorten URL</button>
+        </form>
+
+        {% if saved %}
+            <div class="alert alert-success" role="alert">
+                Your shortened URL: <a href="{{ a }}" class="alert-link">{{ a }}</a>
+            </div>
+        {% endif %}
+
+        <!-- Other Options -->
+        <h2 class="text-center mt-5 mb-3">Other Options</h2>
+        <div class="d-flex justify-content-center gap-3">
+            <a href="{{ url_for('upload') }}" class="btn btn-outline-light btn-lg">Upload File</a>
+            <a href="{{ url_for('get_count') }}" class="btn btn-outline-light btn-lg">View Stats</a>
+            <a href="{{ url_for('about') }}" class="btn btn-outline-light btn-lg">About</a>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
