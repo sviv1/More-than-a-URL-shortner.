@@ -2,10 +2,12 @@ import os
 import time
 import random
 import string
+from urllib.parse import urlparse
 from flask import Flask, flash, redirect, render_template, request, send_from_directory, url_for
-from werkzeug.utils import secure_filename
-from flask_sqlalchemy import SQLAlchemy # type: ignore
-from pytz import timezone
+from werkzeug.utils import secure_filename  # we use it to save secure filenames it is utility provided by the Flask framework
+                        # like ..//../lorem/ipsum/image.jpg -rm rf/ such files can produce vulnerabilities so we have to handle them
+from flask_sqlalchemy import SQLAlchemy  # type: ignore    (Sqlite3 from SQLAlchemy)
+from pytz import timezone 
 from datetime import datetime
 import config
 
@@ -14,28 +16,28 @@ IST = timezone('Asia/Kolkata')
 # Initialize Flask and SQLAlchemy
 app = Flask(__name__)
 app.config.from_object(config)  # Import the config settings from config.py
-db = SQLAlchemy(app)  # Initialize the SQLAlchemy instance
+db = SQLAlchemy(app)  # starting up the SQLAlchemy instance
 
-# Define allowed file extensions
+#  allowed file extensions
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 
-# Define a model for URL mappings
+# a model for URL mappings more like a table but ORM feature or advantage as class work as tables and rows as the objects of class
 class URL(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     original_url = db.Column(db.String(500), nullable=False)
     short_url = db.Column(db.String(50), nullable=False, unique=True)
-    visit_count = db.Column(db.Integer, default=0)  # Tracks total visits for short URL
-    visitors = db.relationship('Visit', backref='url', lazy=True)  # Relationship to Visit model
+    visit_count = db.Column(db.Integer, default=0)  # visit count is the total visits to an orig url
+    visitors = db.relationship('Visit', backref='url', lazy=True)  # Relationship to Visit model bidirectional as backref=url
     
     def __repr__(self):
         return f'<URL {self.short_url}>'
 
-# Define a model for Visit information
+# a model for Visit information
 class Visit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     ip_address = db.Column(db.String(100), nullable=False)  # IP address of the visitor
     url_mapping_id = db.Column(db.Integer, db.ForeignKey('url.id'), nullable=False)  # ForeignKey to URL model
-    count = db.Column(db.Integer, default=0)  # Count of visits from the same IP
+    count = db.Column(db.Integer, default=0)  # Count of visits from the same IP like how many unique ip adresses visited the original url using our shortening url
     timestamp = db.Column(db.DateTime, default=lambda:datetime.now(IST))  # Timestamp for visit
 
     def __repr__(self):
@@ -44,7 +46,7 @@ class Visit(db.Model):
 with app.app_context():
     db.create_all()  # Creates all the tables
 
-# Define application routes
+#  application routes
 @app.route('/')
 def aux():
     return redirect(url_for('.forms'))
@@ -56,6 +58,9 @@ def forms():
         original_url = request.form.get("original_url").strip().strip('/')
         if original_url == "":
             return render_template('index.html', warning=1)
+        
+        if(not is_valid_url(original_url)):
+            return render_template('index.html', warning=3)
 
         short_url = generate_short_url()
         
@@ -150,7 +155,7 @@ def get_count():
         if url_entry:
             # Fetch visits related to this URL
             visits = Visit.query.filter_by(url_mapping_id=url_entry.id).all()
-            for visit in visits:
+            for visit in visits: # converting the entries in visits to ist timezone
                 visit.timestamp = visit.timestamp.astimezone(IST)
             # Prepare statistics to send to the template
             stats = {
@@ -207,6 +212,14 @@ def generate_short_url(length=6):
     characters = string.ascii_letters + string.digits
     return ''.join(random.choice(characters) for _ in range(length))
 
+def is_valid_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])  # Ensures both scheme (http/https) and netloc (domain) are present
+    except ValueError:
+        return False
+
+
 
 def clean():
     for file in os.listdir(app.config['UPLOAD_FOLDER']):
@@ -214,4 +227,4 @@ def clean():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False) # debug true only when developing so that easy to find out the mistakes of mine
