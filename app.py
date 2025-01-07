@@ -13,7 +13,7 @@ import config
 
 IST = timezone('Asia/Kolkata')
 
-# Initialize Flask and SQLAlchemy
+# Initializing Flask and SQLAlchemy
 app = Flask(__name__)
 app.config.from_object(config)  # Import the config settings from config.py
 db = SQLAlchemy(app)  # starting up the SQLAlchemy instance
@@ -38,7 +38,7 @@ class Visit(db.Model):
     ip_address = db.Column(db.String(100), nullable=False)  # IP address of the visitor
     url_mapping_id = db.Column(db.Integer, db.ForeignKey('url.id'), nullable=False)  # ForeignKey to URL model
     timestamp = db.Column(db.DateTime, default=lambda:datetime.now(IST))  # Timestamp for visit
-    url_mapping = db.relationship('URL', backref='visits', lazy=True)
+    url_mapping = db.relationship('URL', backref='visits', lazy=True) #lazy is telling how the loading of data is happenging onlhy when the request of it is made
 
     def __repr__(self):
         return f'<Visit {self.ip_address}>'
@@ -63,10 +63,10 @@ def forms():
         if not is_valid_url(original_url):
             return render_template('index.html', warning=3)
 
-           # Generate a new unique short URL for each submission
+           #  a new unique short URL for each submission
         short_url = generate_short_url()  # Generate a new short URL
 
-        # Ensure the short URL is unique in the database
+        #  the short URL is unique in the database
         while URL.query.filter_by(short_url=short_url).first():
             short_url = generate_short_url()  # Regenerate if not unique
 
@@ -75,13 +75,8 @@ def forms():
         db.session.add(new_url)
         db.session.commit()  # Commit the changes
 
-        # Track the visit of the user generating the short URL
-        ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)  # Get visitor's IP
-        timestamp_ist = datetime.now(IST)  # Get the current time in IST
-        # new_visit = Visit(ip_address=ip, url_mapping_id=new_url.id, timestamp=timestamp_ist)  # Use url_mapping_id instead of short_url
-        # db.session.add(new_visit)  # Add the visit record to the session
-        # db.session.commit()  # Commit the session to the database
-        full_short_url = request.base_url[:-4] + 'q=' + short_url
+        
+        full_short_url = request.base_url[:-4] + 'q=' + short_url # full valid url with base same
         return render_template('index.html', short_url=full_short_url)  # Return the shortened URL to the user
 
     return render_template('index.html')
@@ -101,7 +96,8 @@ def redirect_page(short_url):
     # Track each visit to the short URL
     ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)  # Get visitor's IP
     timestamp_ist = datetime.now(IST)  # Get the current time in IST
-    new_visit = Visit(ip_address=ip, url_mapping_id=url_entry.id, timestamp=timestamp_ist)  # Use url_mapping_id instead of short_url
+    new_visit = Visit(ip_address=ip, url_mapping_id=url_entry.id, timestamp=timestamp_ist)  # Use url_mapping_id to get the results because of the foreighn key mapping id
+    
     db.session.add(new_visit)  # Add the visit record to the session
     db.session.commit()  # Commit the session to the database
 
@@ -113,28 +109,34 @@ def get_count():
     if request.method == 'POST':
         original_url = request.form.get('URL').strip()
 
-        # Query the URL model to find the original URL
-        url_entry = URL.query.filter_by(original_url=original_url).first()
+        # Query the URL model to find all entries for the original URL
+        url_entries = URL.query.filter_by(original_url=original_url).all()
 
-        if url_entry:
-            # Fetch visits related to this URL from the Visit table
-            visits = Visit.query.filter(Visit.url_mapping_id == url_entry.id).all()
+        if url_entries:
+            # Get all visit records for all short URLs associated with the original URL
+            visits = []
+            for url_entry in url_entries:
+                # For each URL entry, fetch the visits based on its id (url_mapping_id)
+                visit_records = Visit.query.filter(Visit.url_mapping_id == url_entry.id).all()
+
+                # Add the short_url to each visit record
+                for visit in visit_records:
+                    visit.short_url = url_entry.short_url  # Add the short_url to the visit
+
+                visits += visit_records  # Accumulate all visits for the original URL
 
             # Prepare statistics to send to the template
             stats = {
                 'original_url': original_url,
-                'short_url': url_entry.short_url,
+                'short_urls': [url_entry.short_url for url_entry in url_entries],  # List all short URLs
                 'total_visits': len(visits),  # Total visits is the number of records in the Visit table
                 'visit_records': visits
             }
 
-            for visit in stats['visit_records']:
-                visit.short_url = url_entry.short_url
-
             return render_template('stats.html', stats=stats)
 
         else:
-            # If the URL isn't found in the database, show a warning
+            # If no matching URL entries found, show a warning
             return render_template('stats.html', warning=True, basic=False)
 
     return render_template('stats.html', basic=True)
@@ -152,7 +154,7 @@ def upload():
             return render_template('upload.html', warning=2)
 
         filename = secure_filename(file.filename)
-        fid = ''.join(map(str, list(time.gmtime())[1:-3]))
+       # fid = ''.join(map(str, list(time.gmtime())[1:-3]))
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         link = url_for('uploaded_file', filename=filename)
         return render_template('upload.html', warning=-1, link=link)
