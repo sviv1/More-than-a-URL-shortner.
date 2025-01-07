@@ -30,8 +30,6 @@
                     Short URL already exists!
                 {% elif warning == 3 %}
                     Invalid URL format!
-                {% elif warning == 4 %}
-                    Short URL must be alphanumeric!
                 {% elif warning == 5 %}
                     Short URL not found!
                 {% endif %}
@@ -47,9 +45,9 @@
             <button type="submit" class="btn btn-outline-light btn-lg w-100">Shorten URL</button>
         </form>
 
-        {% if saved %}
+        {% if short_url %}
             <div class="alert alert-success" role="alert">
-                Your shortened URL: <a href="{{ a }}" class="alert-link">{{ a }}</a>
+                Your shortened URL: <a href="{{ short_url }}" class="alert-link">{{ short_url }}</a>
             </div>
         {% endif %}
 

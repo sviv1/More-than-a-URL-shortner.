@@ -37,7 +37,7 @@
                 <tr>
                     <th>S. No.</th>
                     <th>IP Address</th>
-                    <th>Visit Count</th>
+                    <th>Short URL</th>
                     <th>Timestamp</th>
                 </tr>
             </thead>
@@ -46,7 +46,7 @@
                 <tr>
                     <td>{{ loop.index }}</td>
                     <td>{{ visit.ip_address }}</td>
-                    <td>{{ visit.count }}</td>
+                    <td>{{ visit.short_url }}</td>
                     <td>{{ visit.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                 </tr>
                 {% endfor %}

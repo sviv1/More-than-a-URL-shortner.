@@ -27,7 +27,7 @@ class URL(db.Model):
     original_url = db.Column(db.String(500), nullable=False)
     short_url = db.Column(db.String(50), nullable=False, unique=True)
     visit_count = db.Column(db.Integer, default=0)  # visit count is the total visits to an orig url
-    visitors = db.relationship('Visit', backref='url', lazy=True)  # Relationship to Visit model bidirectional as backref=url
+   
     
     def __repr__(self):
         return f'<URL {self.short_url}>'
@@ -37,8 +37,8 @@ class Visit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     ip_address = db.Column(db.String(100), nullable=False)  # IP address of the visitor
     url_mapping_id = db.Column(db.Integer, db.ForeignKey('url.id'), nullable=False)  # ForeignKey to URL model
-    count = db.Column(db.Integer, default=0)  # Count of visits from the same IP like how many unique ip adresses visited the original url using our shortening url
     timestamp = db.Column(db.DateTime, default=lambda:datetime.now(IST))  # Timestamp for visit
+    url_mapping = db.relationship('URL', backref='visits', lazy=True)
 
     def __repr__(self):
         return f'<Visit {self.ip_address}>'
@@ -56,26 +56,90 @@ def aux():
 def forms():
     if request.method == 'POST':
         original_url = request.form.get("original_url").strip().strip('/')
+
         if original_url == "":
             return render_template('index.html', warning=1)
         
-        if(not is_valid_url(original_url)):
+        if not is_valid_url(original_url):
             return render_template('index.html', warning=3)
 
-        short_url = generate_short_url()
-        
+           # Generate a new unique short URL for each submission
+        short_url = generate_short_url()  # Generate a new short URL
+
         # Ensure the short URL is unique in the database
         while URL.query.filter_by(short_url=short_url).first():
-            short_url = generate_short_url()
+            short_url = generate_short_url()  # Regenerate if not unique
 
-        # Store the mapping in the database
-        new_url_mapping = URL(original_url=original_url, short_url=short_url)
-        db.session.add(new_url_mapping)
-        db.session.commit()
+            # Create a new entry in the database with the original and short URL
+        new_url = URL(original_url=original_url, short_url=short_url, visit_count=1)
+        db.session.add(new_url)
+        db.session.commit()  # Commit the changes
 
-        return render_template('index.html', a=request.base_url[:-4] + 'q=' + short_url, saved=True)
+        # Track the visit of the user generating the short URL
+        ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)  # Get visitor's IP
+        timestamp_ist = datetime.now(IST)  # Get the current time in IST
+        # new_visit = Visit(ip_address=ip, url_mapping_id=new_url.id, timestamp=timestamp_ist)  # Use url_mapping_id instead of short_url
+        # db.session.add(new_visit)  # Add the visit record to the session
+        # db.session.commit()  # Commit the session to the database
+        full_short_url = request.base_url[:-4] + 'q=' + short_url
+        return render_template('index.html', short_url=full_short_url)  # Return the shortened URL to the user
 
     return render_template('index.html')
+
+
+@app.route('/q=<short_url>')
+def redirect_page(short_url):
+    # Query the URL model by short_url to get the original URL
+    url_entry = URL.query.filter_by(short_url=short_url).first()
+
+    if not url_entry:
+        # If the short URL is not found, show a warning message
+        return render_template('index.html', warning=5)
+
+    original_url = url_entry.original_url  # Get the original URL from the URL model
+
+    # Track each visit to the short URL
+    ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)  # Get visitor's IP
+    timestamp_ist = datetime.now(IST)  # Get the current time in IST
+    new_visit = Visit(ip_address=ip, url_mapping_id=url_entry.id, timestamp=timestamp_ist)  # Use url_mapping_id instead of short_url
+    db.session.add(new_visit)  # Add the visit record to the session
+    db.session.commit()  # Commit the session to the database
+
+    # Redirect the user to the original URL
+    return redirect(original_url)
+
+@app.route('/stat', methods=['GET', 'POST'])
+def get_count():
+    if request.method == 'POST':
+        original_url = request.form.get('URL').strip()
+
+        # Query the URL model to find the original URL
+        url_entry = URL.query.filter_by(original_url=original_url).first()
+
+        if url_entry:
+            # Fetch visits related to this URL from the Visit table
+            visits = Visit.query.filter(Visit.url_mapping_id == url_entry.id).all()
+
+            # Prepare statistics to send to the template
+            stats = {
+                'original_url': original_url,
+                'short_url': url_entry.short_url,
+                'total_visits': len(visits),  # Total visits is the number of records in the Visit table
+                'visit_records': visits
+            }
+
+            for visit in stats['visit_records']:
+                visit.short_url = url_entry.short_url
+
+            return render_template('stats.html', stats=stats)
+
+        else:
+            # If the URL isn't found in the database, show a warning
+            return render_template('stats.html', warning=True, basic=False)
+
+    return render_template('stats.html', basic=True)
+
+
 
 
 @app.route('/upload', methods=['GET', 'POST'])
@@ -92,7 +156,7 @@ def upload():
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         link = url_for('uploaded_file', filename=filename)
         return render_template('upload.html', warning=-1, link=link)
-
+        
     if request.method == 'POST' and request.form.get('key').strip() == config.CLEAN_KEY:
         clean()
 
@@ -104,73 +168,17 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
-@app.route('/f=<name>')
-def showit(name: str):
-    files = os.listdir(app.config['UPLOAD_FOLDER'])
-    for file in files:
-        if name in file:
-            return render_template('showfile.html', image=not file.endswith('.pdf'), path=file)
-    return render_template('showfile.html', path=-1)
+# @app.route('/f=<name>')
+# def showit(name: str):
+#     files = os.listdir(app.config['UPLOAD_FOLDER'])
+#     for file in files:
+#         if name in file:
+#             return render_template('showfile.html', image=not file.endswith('.pdf'), path=file)
+#     return render_template('showfile.html', path=-1)
 
 
-@app.route('/q=<short_url>')
-def redirect_page(short_url):
-    url_entry = URL.query.filter_by(short_url=short_url).first()  # Query the URL model by short_url
-
-    if not url_entry:
-        return render_template('index.html', warning=5)
-
-    original_url = url_entry.original_url  # Get the original URL from the URL model
-    ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
-
-    # Track visits for the short URL
-    visit_entry = Visit.query.filter_by(url_mapping_id=url_entry.id, ip_address=ip).first()
-
-    if visit_entry:
-        visit_entry.count += 1  # Increment the visit count for this IP
-    else:
-        # If no record exists, create a new Visit entry
-        new_visit = Visit(ip_address=ip, url_mapping_id=url_entry.id,count=1)
-        db.session.add(new_visit)
-    
-    original_url_entries = URL.query.filter_by(original_url=original_url).all()
-    for entry in original_url_entries:
-        entry.visit_count += 1
-
-    # Commit the changes to the database
-    db.session.commit()
 
 
-    return redirect(original_url)
-
-
-@app.route('/stat', methods=['GET', 'POST'])
-def get_count():
-    if request.method == 'POST':
-        original_url = request.form.get('URL').strip()
-
-        # Query the URL model to find the original URL
-        url_entry = URL.query.filter_by(original_url=original_url).first()
-
-        if url_entry:
-            # Fetch visits related to this URL
-            visits = Visit.query.filter_by(url_mapping_id=url_entry.id).all()
-            for visit in visits: # converting the entries in visits to ist timezone
-                visit.timestamp = visit.timestamp.astimezone(IST)
-            # Prepare statistics to send to the template
-            stats = {
-                'original_url': original_url,
-                'short_url': url_entry.short_url,
-                'total_visits': url_entry.visit_count,
-                'visit_records': visits
-            }
-            return render_template('stats.html', stats=stats)
-
-        else:
-            # If the URL isn't found in the database, show a warning
-            return render_template('stats.html', warning=True, basic=False)
-
-    return render_template('stats.html', basic=True)
 
 
 @app.route('/about')
@@ -227,4 +235,4 @@ def clean():
 
 
 if __name__ == '__main__':
-    app.run(debug=False) # debug true only when developing so that easy to find out the mistakes of mine
+    app.run(debug='true') # debug true only when developing so that easy to find out the mistakes of mine
